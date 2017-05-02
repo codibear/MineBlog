@@ -1,0 +1,2 @@
+# MineBlog
+Just some blog!
