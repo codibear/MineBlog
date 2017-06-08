@@ -356,3 +356,375 @@ if (flag==0){
 
 - `boolean isSameCode`思想
 当我们唱票的时候，遍历我们定义的数组（里面包含了所有类型）因为数组是每个类型的票都有定义，所以当输入条件又符合的时候就直接跳出循环（接着向下循环没有意义）**在这里如果用if else判断是否合法，那么只要输入的不是该次循环该数组中的存储内容，他就会执行else（肯定会执行3此else）和我们要求不符合，所以这里添加了一个flag用于跳出循环**
+
+### 泛型的一个利用方法
+在泛型形参中添加类型约束 如： `ArrayList<Student> arrayList = new ArrayList();`
+可以利用foreach间接的将ArrayList转换类型,利用该类型的方法:
+`for(Student st : arrayList){ System.out.println(st.getName());}`
+
+#线程编程之生产者消费者
+
+经验总结：
+自己的代码：
+-------------------------
+Customer 消费者
+```
+package OnClass.Thread.ProAndCus;
+
+/**
+ * Created by 29185 on 2017/6/8.
+ */
+public class Customer extends Thread{
+    int num;
+    @Override
+    public void run() {
+        get(num);
+    }
+    public void get(int num) {
+        synchronized (Customer.class){
+        //仓库没有空间，可以取东西
+        if (num <= Store.getNum() && Store.getNum() >= 0) {
+            Store.deleteStroe("something");
+            Store.deleteNum(num);
+            this.notifyAll();
+            System.out.println("仓库别去走了东西,现在有" + Store.getNum() + "产品");
+
+        } else {
+            try {
+                this.wait();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    }
+}
+
+```
+生产者
+```
+package OnClass.Thread.ProAndCus;
+
+/**
+ * Created by 29185 on 2017/6/8.
+ */
+public class Producter extends Thread{
+    int num;
+    @Override
+    public void run() {
+        set(num);
+    }
+    public   void set(int num) {
+        synchronized (Producter.class){
+        //仓库还有空间可以添加
+        if (Store.getNum() + num <= Store.getSize()) {
+            Store.setStore("somthing");
+            Store.addNum(num);
+            this.notifyAll();
+            System.out.println("进行了生产，一共有" + Store.getNum() + "还可以添加" + (Store.getSize() - Store.getNum()));
+        } else {
+            //仓库没有空间了
+            try {
+                this.wait();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    }
+}
+
+```
+仓库
+```
+package OnClass.Thread.ProAndCus;
+
+import java.util.ArrayList;
+
+/**
+ * Created by 29185 on 2017/6/8.
+ */
+public class Store {
+    public static int num = 0;
+    public static final int size = 100;
+    public static ArrayList<String> store = new ArrayList<>();
+
+    public static int getNum() {
+        return num;
+    }
+    public ArrayList<String> getStore() {
+        return store;
+    }
+
+    public static int getSize() {
+        return size;
+    }
+
+    public static void addNum(int num) {
+        Store.num += num;
+    }
+    public static void deleteNum(int num){
+        Store.num -= num;
+    }
+
+    public static void setStore(String store) {
+        Store.store.add(store);
+    }
+    public static void deleteStroe(String store){
+        Store.store.remove(store);
+    }
+}
+
+```
+执行：
+```
+package OnClass.Thread.ProAndCus;
+
+/**
+ * Created by 29185 on 2017/6/8.
+ *
+ * 为什么会有问题：
+ * 1.线程只能自己等，不能让别人等，等完以后才能去执行，执行完唤醒
+ * 2.
+ *
+ */
+public class Test {
+    public static void main(String[] args) {
+        Store store = new Store();
+        Producter p1 = new Producter();
+        Producter p2 = new Producter();
+        Producter p3 = new Producter();
+        Producter p4 = new Producter();
+        Customer c1 = new Customer();
+        Customer c2 = new Customer();
+        Customer c3 = new Customer();
+        p1.set(20);
+        p2.set(10);
+        p3.set(30);
+        p4.set(20);
+        c1.get(10);
+        c2.get(20);
+        c3.get(30);
+
+        p1.start();
+        p2.start();
+        p3.start();
+        p4.start();
+        c1.start();
+        c2.start();
+        c3.start();
+
+
+
+    }
+}
+
+```
+**总结：
+ 1.线程只能自己等，不能让别人等，等完以后才能去执行，执行完唤醒（注意if条件）
+ 2.wait()后他会卡在那里，只有不卡了（不满足条件，内存释放后）他就会接着语句向下执行
+ 3.线程同步：synchronized 修饰的是那些同一类型的不同对象，以此来解决他们之间的冲突**
+
+--------------------------
+老师给的答案：
+仓库类
+```
+package com.lzc.xxoo;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class Ck {
+	//用来保存商品
+	private List list=new ArrayList();
+	//设定库存数量
+	private final int size=100;
+	
+	//同步 避免其他方法 同时调用
+	public synchronized void add(int num){
+		//如果发现 库存够了
+		if(list.size()+num>size){
+			System.out.println("仓库够了");
+			
+			try {
+				//当前线程等待
+				this.wait();
+				
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+		}
+		//
+		for(int i=0;i<num;i++){
+			list.add("东西");		
+		}
+		//唤醒其他线程
+		this.notifyAll();
+		
+		System.out.println("添加之后的库存="+list.size());
+			
+	}
+	
+	public synchronized void qu(int num){
+		
+		//如果发现 商品不足
+		if(num>list.size()){
+				try {
+					//当前等待
+					this.wait();
+				} catch (InterruptedException e) {
+
+					e.printStackTrace();
+				}
+
+		}
+		
+		for(int i=0;i<num;i++){
+			list.remove("东西");
+		}
+		//唤醒其他线程
+		this.notifyAll();
+		
+		System.out.println("取完之后的库存="+list.size());
+	}
+	
+	
+
+}
+
+```
+消费者
+
+```
+package com.lzc.xxoo;
+//消费者
+public class Customer extends Thread{
+	private int num;
+	private Ck ck;
+	
+	public Ck getCk() {
+		return ck;
+	}
+
+	public void setCk(Ck ck) {
+		this.ck = ck;
+	}
+
+	public int getNum() {
+		return num;
+	}
+
+	public void setNum(int num) {
+		this.num = num;
+	}
+
+	@Override
+	public void run() {
+		
+		ck.qu(num);
+		
+	}
+	
+	
+
+}
+
+```
+生产者
+```
+package com.lzc.xxoo;
+//生产者
+public class Producter extends Thread{
+	
+	private int num;
+	private Ck ck;
+	
+	@Override
+	public void run() {
+		ck.add(num);
+	}
+
+	public int getNum() {
+		return num;
+	}
+
+	public void setNum(int num) {
+		this.num = num;
+	}
+
+	public Ck getCk() {
+		return ck;
+	}
+
+	public void setCk(Ck ck) {
+		this.ck = ck;
+	}
+
+}
+
+```
+测试
+```
+package com.lzc.xxoo;
+
+public class Test {
+	
+	public static void main(String[] args) {
+		Ck ck=new Ck();
+		
+		Producter p1=new Producter();
+		
+		Producter p2=new Producter();
+		Producter p3=new Producter();
+		Producter p4=new Producter();
+		Producter p5=new Producter();
+		
+		p1.setCk(ck);
+		p1.setNum(10);
+		
+		p2.setCk(ck);
+		p2.setNum(50);
+		
+		p3.setCk(ck);
+		p3.setNum(20);
+		
+		
+		p4.setCk(ck);		
+		p4.setNum(30);
+		
+		p5.setCk(ck);		
+		p5.setNum(45);
+		
+		
+		Customer c1=new Customer();
+		Customer c2=new Customer();
+		Customer c3=new Customer();
+		
+		c1.setCk(ck);
+		c1.setNum(40);
+		
+		c2.setCk(ck);
+		c2.setNum(10);
+		
+		c3.setCk(ck);
+		c3.setNum(80);
+		
+		
+		p1.start();
+		p2.start();
+		p3.start();
+		p4.start();
+		p5.start();
+		
+		
+		c1.start();
+		c2.start();
+		c3.start();
+		
+	}
+
+}
+
+```
