@@ -728,3 +728,394 @@ public class Test {
 }
 
 ```
+
+
+#网络编程（难点） -----------   图书管理
+```
+简述一下思想：
+1.s.accept();是服务器用来监听访问的，只要有访问就往下执行了，如果没有循环，下面的语句只能执行一次
+2.最外层要有一个一直监听传来的FlagAndData 类，循环实现！
+3.传递都用的是FlagAndData 类，因为他包含一个flag，用于服务端识别访问的方法；另一个list可以往里面存放任何类型数据。
+4.可以在方法中，传出数据后就直接获取数据
+5.每一个不同实现都是一个方法
+
+
+冷浩然：方法参数可以传Socket类型，方便！
+```
+
+实体类
+
+```
+//图书 -- 真正交互类
+public class Book implements Serializable{
+    private String name;
+    private int id;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    @Override
+    public String toString() {
+        return name + id;
+    }
+}
+
+//用户 -- 真正交互类
+public class User implements Serializable{
+    private String name;
+    private String pwd;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getPwd() {
+        return pwd;
+    }
+
+    public void setPwd(String pwd) {
+        this.pwd = pwd;
+    }
+}
+//自定义类---这个类是充当桥梁的交互类
+（用于装flag--用于服务器鉴别操作,一个数组--传递Object“也就是任何东西哦，最好还是数组列表”）
+
+
+
+public class FlagAndData implements Serializable{
+    private int flag;
+    //这个要写成Object类型，因为传递的数据不只一个类型
+    private List<Object> ArrayList = new ArrayList();
+
+    public int getFlag() {
+        return flag;
+    }
+
+    public void setFlag(int flag) {
+        this.flag = flag;
+    }
+
+    public List<Object> getArrayList() {
+        return ArrayList;
+    }
+
+    public void setArrayList(List<Object> arrayList) {
+        ArrayList = arrayList;
+    }
+}
+```
+客户端
+```
+public class BookClient {
+    public static BookClient bookClient = new BookClient();
+    FlagAndData flagAndData = new FlagAndData();
+    public static void main(String[] args) {
+
+            try {
+                //建立一个套接字
+                Socket socket = new Socket("127.0.0.1",9999);
+                while (true){
+                        //准备写出数据，传到服务器
+                    ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+                    //接受flag数据，做出相应的操作
+
+                    //正式登录
+                    FlagAndData userPass = bookClient.login();
+                    oos.writeObject(userPass);
+                    System.out.println("客户端传出成功！");
+                    /**
+                     * 需要注意的是下面的接受数据只要写在前面客户端就会一直等待
+                     */
+                    InputStream is = socket.getInputStream();
+                    int flag =0;
+                    flag = is.read();
+                    if(flag==0) {
+                        System.out.println("登录成功！");
+                        show();
+                        break;
+                    }else {
+                        continue;
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+    }
+    //选项显示
+    public static void show() {
+        Scanner scanner = new Scanner(System.in);
+        while (true){
+            System.out.println("请输入想执行的操作\n1.录入图书信息\n2.查看图书信息\n3.删除图书信息\t4.更改图书信息");
+            int num = scanner.nextInt();
+            switch (num) {
+                case 1:
+                    Socket socket = null;
+                    try {
+                        socket = new Socket("127.0.0.1", 9999);
+                        //准备写出数据，传到服务器
+                        ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+                        FlagAndData flagAndData = addBook();
+                        oos.writeObject(flagAndData);
+                        oos.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    break;
+                case 2:
+                    checkBook();
+                    break;
+                case 3:
+                    deleteBook();
+                    break;
+                case 4:
+                    changeBook();
+                    break;
+            }
+        }
+    }
+    public FlagAndData login(){
+        FlagAndData flagAndData = new FlagAndData();
+        Scanner input = new Scanner(System.in);
+        //注册功能，建立用户实体
+        User user = new User();
+        System.out.println("欢迎来到登录界面！");
+        System.out.println("请输入用户名：");
+        user.setName(input.next());
+        System.out.println("请输入密码：");
+        user.setPwd(input.next());
+        List userList = new ArrayList();
+        userList.add(user);
+        flagAndData.setFlag(0);
+        flagAndData.setArrayList(userList);
+        return flagAndData;
+    }
+    public static FlagAndData addBook(){
+        FlagAndData flagAndData = new FlagAndData();
+        List bookList = new ArrayList();
+        while (true) {
+
+            Scanner input = new Scanner(System.in);
+            //注册功能，建立用户实体
+            Book book = new Book();
+            System.out.println("录入图书：");
+            System.out.println("请输入图书名：");
+            book.setName(input.next());
+            System.out.println("请输入图书编号：");
+            book.setId(input.nextInt());
+            bookList.add(book);
+            flagAndData.setFlag(1);
+            flagAndData.setArrayList(bookList);
+            System.out.println("是否继续输入  Y/N");
+            if(input.next().equalsIgnoreCase("n")){
+                break;
+            }else {
+                continue;
+            }
+        }
+        return flagAndData;
+    }
+    public static void checkBook(){
+        FlagAndData flagAndData = new FlagAndData();
+        flagAndData.setFlag(2);
+
+        try {
+            Socket socket = new Socket("127.0.0.1",9999);
+            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+            oos.writeObject(flagAndData);
+
+            ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
+            List list = (List) ois.readObject();
+            for(Object o:list){
+                System.out.println("图书编号："+((Book)o).getId()+"-----------图书名："+((Book)o).getName());
+            }
+            ois.close();
+            oos.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }catch (ClassNotFoundException e){
+            e.printStackTrace();
+        }
+    }
+
+    public static void changeBook(){
+        FlagAndData flagAndData = new FlagAndData();
+        List bookList = new ArrayList();
+        Book book = new Book();
+        Scanner input = new Scanner(System.in);
+        System.out.println("请输入要修改的图书编号：");
+        book.setId(input.nextInt());
+        System.out.println("请输入修改后的图书名：");
+        book.setName(input.next());
+
+        flagAndData.setFlag(4);
+        bookList.add(book);
+        flagAndData.setArrayList(bookList);
+
+        try {
+            Socket socket = new Socket("127.0.0.1",9999);
+            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+            oos.writeObject(flagAndData);
+
+            ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
+            List list = (List) ois.readObject();
+            for(int i = 0 ; i<list.size();i++){
+                Book book1 = (Book) list.get(i);
+                System.out.println("图书编号："+book1.getId()+"-----------图书名："+book1.getName());
+            }
+           /* for(Object o:list){
+                System.out.println(((Book)o).getId()+"-----------"+((Book)o).getName());
+            }*/
+            ois.close();
+            oos.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }catch (ClassNotFoundException e){
+            e.printStackTrace();
+        }
+    }
+
+    public static void deleteBook(){
+        FlagAndData flagAndData = new FlagAndData();
+        List bookList = new ArrayList();
+        Book book = new Book();
+        Scanner input = new Scanner(System.in);
+        System.out.println("请输入图书编号：");
+        book.setId(input.nextInt());
+        flagAndData.setFlag(3);
+        bookList.add(book);
+        flagAndData.setArrayList(bookList);
+
+        try {
+            Socket socket = new Socket("127.0.0.1",9999);
+            ObjectOutputStream oos = new ObjectOutputStream(socket.getOutputStream());
+            oos.writeObject(flagAndData);
+
+            ObjectInputStream ois = new ObjectInputStream(socket.getInputStream());
+            List list = (List) ois.readObject();
+            for(Object o:list){
+                System.out.println("图书编号："+((Book)o).getId()+"-----------图书名："+((Book)o).getName());
+            }
+            ois.close();
+            oos.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }catch (ClassNotFoundException e){
+            e.printStackTrace();
+        }
+    }
+
+}
+
+```
+服务端
+```
+
+public class BookServer {
+    private static List list;
+    private static List listDelete;
+    private static List listChange;
+    public static void main(String[] args) {
+
+        try {
+            //创建接受套接字
+            ServerSocket ss = new ServerSocket(9999);
+            while (true) { //while需要写在Socket后面
+                //启动
+                Socket s = ss.accept();
+                //接受对象数据 ois
+                ObjectInputStream ois = new ObjectInputStream(s.getInputStream());
+                //从客户端读入数据 FlagAndData 类型
+                //这个数据一直在和服务器交互，所以不要在外面强制转换，通过flag判断操作，再进行转换
+                FlagAndData flagAndData = (FlagAndData) ois.readObject();//问：在下面另起一行直接写ois去作为数据行不行
+//-------------------------------------------------------------------------------------------------------------------------------
+                //发送对象数据 oos
+               // ObjectOutputStream oos = new ObjectOutputStream(s.getOutputStream());在这里写有错，哪用在哪写；
+                //flag
+                int flag = flagAndData.getFlag();
+
+                if (flag == 0) {
+                    //这里要一步一步的去转化，因为得到的是一个List数组里表
+                    List list = flagAndData.getArrayList();
+                    /**
+                     * ------------------这里要写get()才能类型转换
+                     */
+                    User user = (User) list.get(0);
+                    if (user.getName().equals("zzx") && user.getPwd().equals("123")) {
+                        System.out.println("登录成功！");
+                        flag = 0;
+                    } else {
+                        System.out.println("登录失败！");
+                    }
+                }
+                //添加
+                if(flag==1){
+                    list = flagAndData.getArrayList();
+                    for(Object v:list){
+                        System.out.println(((Book)v).getName());
+                    }
+                    //问：如何多次存储，读取都不会有冲突？
+                }
+                //查看
+                if(flag==2){
+                    ObjectOutputStream oos = new ObjectOutputStream(s.getOutputStream());
+                    oos.writeObject(list);
+                }
+                //删除
+                if(flag==3){
+                    listDelete = flagAndData.getArrayList();
+                    Book book = (Book) listDelete.get(0);
+                    for(Object v:list){
+                        if(((Book)v).getId()==(book.getId())){
+                            list.remove(v);
+                            break;
+                        }
+                    }
+                    ObjectOutputStream oos = new ObjectOutputStream(s.getOutputStream());
+                    oos.writeObject(list);
+                }
+                //更改
+                if (flag==4){
+                    listChange = flagAndData.getArrayList();
+                    Book book = (Book) listChange.get(0);
+                    for(Object v:list){
+                        if(((Book)v).getId()==(book.getId())){
+                            int num = list.indexOf(v);
+                            list.set(num,book);
+                            break;
+                        }
+                    }
+                    ObjectOutputStream oos = new ObjectOutputStream(s.getOutputStream());
+                    oos.writeObject(list);
+                }
+                OutputStream os = s.getOutputStream();
+                //最后把flag数据返回作为，客户端显示的依据
+                os.write(flag);
+                System.out.println("以输出");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+```
